@@ -106,6 +106,12 @@ async function run() {
       res.send(room);
     });
 
+    // Create a new room
+    app.post("/add-room", async (req, res) => {
+      const room = req.body;
+      const result = await roomsCollection.insertOne(room);
+      res.send(result);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
