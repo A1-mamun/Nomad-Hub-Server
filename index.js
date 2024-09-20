@@ -112,11 +112,22 @@ async function run() {
       const result = await roomsCollection.insertOne(room);
       res.send(result);
     });
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+
+    // delete a room
+    app.delete("/delete-room/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await roomsCollection.deleteOne(query);
+      res.send(result);
+    });
+    // get all rooms by a user(host)
+    app.get("/my-listings/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      let query = { "host.email": email };
+      const rooms = await roomsCollection.find(query).toArray();
+      res.send(rooms);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
   }
