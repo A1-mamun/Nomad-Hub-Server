@@ -55,6 +55,7 @@ async function run() {
   try {
     // Collections
     const roomsCollection = client.db("NomadHub").collection("rooms");
+    const usersCollection = client.db("NomadHub").collection("users");
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
@@ -110,6 +111,24 @@ async function run() {
     app.post("/add-room", async (req, res) => {
       const room = req.body;
       const result = await roomsCollection.insertOne(room);
+      res.send(result);
+    });
+
+    // save a user
+    app.put("/user", async (req, res) => {
+      const user = req.body;
+      const query = { email: user?.email };
+      // check if user already exists
+      const isUserExists = await usersCollection.findOne(query);
+      if (isUserExists) {
+        return res.send(isUserExists);
+      }
+      // save user first time
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: { ...user, timestamp: Date.now() },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
 
