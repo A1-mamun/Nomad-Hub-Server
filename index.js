@@ -121,7 +121,16 @@ async function run() {
       // check if user already exists
       const isUserExists = await usersCollection.findOne(query);
       if (isUserExists) {
-        return res.send(isUserExists);
+        if (user.status === "Requested") {
+          // if existing user is requesting to become a host
+          const result = await usersCollection.updateOne(query, {
+            $set: { status: user?.status },
+          });
+          return res.send(result);
+        } else {
+          // if existing user login again
+          return res.send(isUserExists);
+        }
       }
       // save user first time
       const options = { upsert: true };
@@ -130,6 +139,19 @@ async function run() {
       };
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    });
+
+    // get a user by email
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email });
+      res.send(user);
+    });
+
+    // get all users from the database
+    app.get("/users", async (req, res) => {
+      const users = await usersCollection.find({}).toArray();
+      res.send(users);
     });
 
     // delete a room
