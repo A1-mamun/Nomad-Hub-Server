@@ -154,6 +154,17 @@ async function run() {
       res.send(users);
     });
 
+    // update user role
+    app.patch("/user/update/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email };
+      const updateDoc = {
+        $set: { ...user, timestamp: Date.now() },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
     // delete a room
     app.delete("/delete-room/:id", async (req, res) => {
       const id = req.params.id;
