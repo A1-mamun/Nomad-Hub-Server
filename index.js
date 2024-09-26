@@ -27,12 +27,12 @@ const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
   console.log(token);
   if (!token) {
-    return res.status(401).send({ message: "unauthorized access" });
+    return res.status(401).send({ message: "unauthorized access!" });
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       console.log(err);
-      return res.status(401).send({ message: "unauthorized access" });
+      return res.status(401).send({ message: "unauthorized access!" });
     }
     req.user = decoded;
     next();
@@ -56,8 +56,16 @@ async function run() {
     // Collections
     const roomsCollection = client.db("NomadHub").collection("rooms");
     const usersCollection = client.db("NomadHub").collection("users");
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // vefifiy admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result.role !== "Admin") {
+        return res.status(401).send({ message: "unauthorized access!" });
+      }
+      next();
+    };
 
     // auth related api
     app.post("/jwt", async (req, res) => {
@@ -149,7 +157,7 @@ async function run() {
     });
 
     // get all users from the database
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const users = await usersCollection.find({}).toArray();
       res.send(users);
     });
