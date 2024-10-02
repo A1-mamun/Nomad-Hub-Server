@@ -7,6 +7,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 //  initialize express app
 const app = express();
@@ -56,12 +57,23 @@ async function run() {
     // Collections
     const roomsCollection = client.db("NomadHub").collection("rooms");
     const usersCollection = client.db("NomadHub").collection("users");
-    // vefifiy admin middleware
+    // vefify admin middleware
     const verifyAdmin = async (req, res, next) => {
       const user = req.user;
       const query = { email: user?.email };
       const result = await usersCollection.findOne(query);
       if (!result || result.role !== "Admin") {
+        return res.status(401).send({ message: "unauthorized access!" });
+      }
+      next();
+    };
+
+    // vefify host middleware
+    const verifyHost = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result.role !== "Host") {
         return res.status(401).send({ message: "unauthorized access!" });
       }
       next();
@@ -116,7 +128,7 @@ async function run() {
     });
 
     // Create a new room
-    app.post("/add-room", async (req, res) => {
+    app.post("/add-room", verifyToken, verifyHost, async (req, res) => {
       const room = req.body;
       const result = await roomsCollection.insertOne(room);
       res.send(result);
@@ -174,19 +186,45 @@ async function run() {
       res.send(result);
     });
     // delete a room
-    app.delete("/delete-room/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await roomsCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/delete-room/:id",
+      verifyToken,
+      verifyHost,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await roomsCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
     // get all rooms by a user(host)
-    app.get("/my-listings/:email", async (req, res) => {
-      const email = req.params.email;
-      console.log(email);
-      let query = { "host.email": email };
-      const rooms = await roomsCollection.find(query).toArray();
-      res.send(rooms);
+    app.get(
+      "/my-listings/:email",
+      verifyToken,
+      verifyHost,
+      async (req, res) => {
+        const email = req.params.email;
+        console.log(email);
+        let query = { "host.email": email };
+        const rooms = await roomsCollection.find(query).toArray();
+        res.send(rooms);
+      }
+    );
+
+    // create payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const amount = req.body.price;
+      const amountInCents = parseFloat(amount) * 100;
+      if (!amount || amountInCents <= 0) {
+        return res.status(400).send({ message: "Invalid amount" });
+      }
+      // generate client secret
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency: "usd",
+      });
+      // send the client secret to the client as response
+      res.send({ clientSecret: client_secret });
     });
   } finally {
     // Ensures that the client will close when you finish/error
