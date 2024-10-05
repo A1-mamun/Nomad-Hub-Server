@@ -55,8 +55,10 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Collections
-    const roomsCollection = client.db("NomadHub").collection("rooms");
-    const usersCollection = client.db("NomadHub").collection("users");
+    const db = client.db("NomadHub");
+    const roomsCollection = db.collection("rooms");
+    const usersCollection = db.collection("users");
+    const bookingsCollection = db.collection("bookings");
     // vefify admin middleware
     const verifyAdmin = async (req, res, next) => {
       const user = req.user;
@@ -225,6 +227,13 @@ async function run() {
       });
       // send the client secret to the client as response
       res.send({ clientSecret: client_secret });
+    });
+
+    // save a booking details
+    app.post("/booking", verifyToken, async (req, res) => {
+      const bookingInfo = req.body;
+      const result = await bookingsCollection.insertOne(bookingInfo);
+      res.send(result);
     });
   } finally {
     // Ensures that the client will close when you finish/error
