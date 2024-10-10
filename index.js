@@ -232,7 +232,20 @@ async function run() {
     // save a booking details
     app.post("/booking", verifyToken, async (req, res) => {
       const bookingInfo = req.body;
+      // save booking info
       const result = await bookingsCollection.insertOne(bookingInfo);
+      res.send(result);
+    });
+
+    // update room status
+    app.patch("/room/status/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const status = req.body.status;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: { booked: status },
+      };
+      const result = await roomsCollection.updateOne(query, updateDoc);
       res.send(result);
     });
   } finally {
