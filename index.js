@@ -248,6 +248,14 @@ async function run() {
       const result = await roomsCollection.updateOne(query, updateDoc);
       res.send(result);
     });
+
+    // get all bookings for guest
+    app.get("/my-bookings/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { "guest.email": email };
+      const result = await bookingsCollection.find(query).toArray();
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
   }
