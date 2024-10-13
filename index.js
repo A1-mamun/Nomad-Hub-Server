@@ -263,6 +263,54 @@ async function run() {
       const result = await bookingsCollection.deleteOne(query);
       res.send(result);
     });
+
+    // get all hosted rooms for host
+    app.get(
+      "/hosted-rooms/:email",
+      verifyToken,
+      verifyHost,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { "host.email": email };
+        const result = await roomsCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
+
+    // admin stats
+    app.get("/admin-stats", async (req, res) => {
+      const bookingDetails = await bookingsCollection
+        .find(
+          {},
+          {
+            projection: {
+              date: 1,
+              price: 1,
+            },
+          }
+        )
+        .toArray();
+      const totalUsers = await usersCollection.countDocuments();
+      const totalRooms = await roomsCollection.countDocuments();
+      const totalPrices = bookingDetails.reduce(
+        (acc, cur) => acc + parseFloat(cur.price),
+        0
+      );
+      const chartData = bookingDetails.map((booking) => {
+        const day = new Date(booking.date).getDate();
+        const month = new Date(booking.date).getMonth() + 1;
+        const data = [`${day}/${month}`, booking?.price];
+        return data;
+      });
+      chartData.unshift(["Day", "Price"]);
+      res.send({
+        totalBookings: bookingDetails.length,
+        totalUsers,
+        totalRooms,
+        totalPrices,
+        chartData,
+      });
+    });
   } finally {
     // Ensures that the client will close when you finish/error
   }
