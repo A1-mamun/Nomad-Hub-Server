@@ -354,6 +354,45 @@ async function run() {
         hostSince: timestamp,
       });
     });
+
+    // geust stats
+    app.get("/guest-stats", verifyToken, async (req, res) => {
+      const email = req.user.email;
+      const bookingDetails = await bookingsCollection
+        .find(
+          { "host.email": email },
+          {
+            projection: {
+              date: 1,
+              price: 1,
+            },
+          }
+        )
+        .toArray();
+
+      const { timestamp } = await usersCollection.findOne(
+        { email },
+        { projection: { timestamp: 1 } }
+      );
+
+      const totalSpents = bookingDetails.reduce(
+        (acc, cur) => acc + parseFloat(cur.price),
+        0
+      );
+      const chartData = bookingDetails.map((booking) => {
+        const day = new Date(booking.date).getDate();
+        const month = new Date(booking.date).getMonth() + 1;
+        const data = [`${day}/${month}`, booking?.price];
+        return data;
+      });
+      chartData.unshift(["Day", "Price"]);
+      res.send({
+        totalBookings: bookingDetails.length,
+        totalSpents,
+        chartData,
+        guestSince: timestamp,
+      });
+    });
   } finally {
     // Ensures that the client will close when you finish/error
   }
