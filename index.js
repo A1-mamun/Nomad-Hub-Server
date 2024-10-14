@@ -278,7 +278,7 @@ async function run() {
     );
 
     // admin stats
-    app.get("/admin-stats", async (req, res) => {
+    app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
       const bookingDetails = await bookingsCollection
         .find(
           {},
@@ -292,7 +292,7 @@ async function run() {
         .toArray();
       const totalUsers = await usersCollection.countDocuments();
       const totalRooms = await roomsCollection.countDocuments();
-      const totalPrices = bookingDetails.reduce(
+      const totalSales = bookingDetails.reduce(
         (acc, cur) => acc + parseFloat(cur.price),
         0
       );
@@ -307,8 +307,51 @@ async function run() {
         totalBookings: bookingDetails.length,
         totalUsers,
         totalRooms,
-        totalPrices,
+        totalSales,
         chartData,
+      });
+    });
+
+    // host stats
+    app.get("/host-stats", verifyToken, verifyHost, async (req, res) => {
+      const email = req.user.email;
+      const bookingDetails = await bookingsCollection
+        .find(
+          { "host.email": email },
+          {
+            projection: {
+              date: 1,
+              price: 1,
+            },
+          }
+        )
+        .toArray();
+
+      const { timestamp } = await usersCollection.findOne(
+        { email },
+        { projection: { timestamp: 1 } }
+      );
+
+      const totalRooms = await roomsCollection.countDocuments({
+        "host.email": email,
+      });
+      const totalSales = bookingDetails.reduce(
+        (acc, cur) => acc + parseFloat(cur.price),
+        0
+      );
+      const chartData = bookingDetails.map((booking) => {
+        const day = new Date(booking.date).getDate();
+        const month = new Date(booking.date).getMonth() + 1;
+        const data = [`${day}/${month}`, booking?.price];
+        return data;
+      });
+      chartData.unshift(["Day", "Price"]);
+      res.send({
+        totalBookings: bookingDetails.length,
+        totalRooms,
+        totalSales,
+        chartData,
+        hostSince: timestamp,
       });
     });
   } finally {
