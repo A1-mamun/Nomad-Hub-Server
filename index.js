@@ -393,6 +393,18 @@ async function run() {
         guestSince: timestamp,
       });
     });
+
+    // update room
+    app.put("/room/update/:id", verifyToken, verifyHost, async (req, res) => {
+      const id = req.params.id;
+      const room = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: room,
+      };
+      const result = await roomsCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
   }
