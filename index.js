@@ -8,6 +8,8 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const nodemailer = require("nodemailer");
+const { format } = require("date-fns");
 
 //  initialize express app
 const app = express();
@@ -22,6 +24,44 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+// send email
+const sendEmail = (emailAddress, emailData) => {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // true for port 465, false for other ports
+    auth: {
+      user: process.env.TRANSPORTER_EMAIL, // generated ethereal user
+      pass: process.env.TRANSPORTER_PASSWORD, // generated ethereal password,
+    },
+  });
+
+  // verify connection configuration
+  transporter.verify(function (error, success) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Server is ready to take our messages");
+    }
+  });
+
+  const emailBody = {
+    from: `"NomadHub" <${process.env.TRANSPORTER_EMAIL}>`, // sender address
+    to: emailAddress, // list of receivers
+    subject: emailData.subject, // Subject line
+    html: emailData.message, // html body
+  };
+
+  transporter.sendMail(emailBody, (err, info) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log("Email Sent: " + info.response);
+    }
+  });
+};
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
@@ -234,6 +274,33 @@ async function run() {
       const bookingInfo = req.body;
       // save booking info
       const result = await bookingsCollection.insertOne(bookingInfo);
+
+      // send email to guest
+      const guestEmailData = {
+        subject: "Booking Confirmation",
+        message: `<h1>Booking Confirmation</h1>
+        <p>Hi ${bookingInfo.guest.name},</p>
+        <p>Your booking has been confirmed for ${bookingInfo.title}.</p>
+        <p>Check-in: ${format(new Date(bookingInfo?.from), "PP")}</p>
+        <p>Check-out: ${format(new Date(bookingInfo?.to), "PP")}</p>
+        <p>Price: $${bookingInfo.price}</p>
+        <p>Thank you for booking with NomadHub.</p>`,
+      };
+      sendEmail(bookingInfo.guest.email, guestEmailData);
+
+      // send email to host
+      const hostEmailData = {
+        subject: "New Booking",
+        message: `<h1>New Booking</h1>
+        <p>Hi ${bookingInfo.host.name},</p>
+        <p>You have a new booking for ${bookingInfo.title}.</p>
+        <p>Check-in: ${format(new Date(bookingInfo?.from), "PP")}</p>
+        <p>Check-out: ${format(new Date(bookingInfo?.to), "PP")}</p>
+        <p>Price: $${bookingInfo.price}</p>
+        <p>Get ready for welcome.</p>
+        <p>Thank you for using NomadHub.</p>`,
+      };
+      sendEmail(bookingInfo.host.email, hostEmailData);
       res.send(result);
     });
 
