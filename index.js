@@ -200,6 +200,14 @@ async function run() {
         $set: { ...user, timestamp: Date.now() },
       };
       const result = await usersCollection.updateOne(query, updateDoc, options);
+
+      // send email to user
+      const emailData = {
+        subject: "Welcome to NomadHub",
+        message: `<p>Thank you for joining NomadHub.</p>
+        <p>Get ready to explore the world.</p>`,
+      };
+      sendEmail(user?.email, emailData);
       res.send(result);
     });
 
