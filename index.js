@@ -347,7 +347,7 @@ async function run() {
       async (req, res) => {
         const email = req.params.email;
         const query = { "host.email": email };
-        const result = await roomsCollection.find(query).toArray();
+        const result = await bookingsCollection.find(query).toArray();
         res.send(result);
       }
     );
@@ -435,7 +435,7 @@ async function run() {
       const email = req.user.email;
       const bookingDetails = await bookingsCollection
         .find(
-          { "host.email": email },
+          { "guest.email": email },
           {
             projection: {
               date: 1,
